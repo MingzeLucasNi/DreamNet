@@ -19,7 +19,7 @@ Research and implementation of the novel SleepNet method for both text and image
 
 ## Requirements
 
-- Python 3.x
+- Python 3.8
 - PyTorch
 - torchvision
 - transformers library (from HuggingFace)
