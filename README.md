@@ -38,22 +38,16 @@ Research and implementation of the novel SleepNet method for both text and image
 
    To train the SleepNet model using default parameters:
    ```bash
-   python train_NLP.py
+   python trainer.py
    ```
 
    For customized training settings:
    ```bash
-   python train_NLP.py --dataset 'ag_news' --epochs 50 --num_classes 10
+   python trainer.py --dataset 'ag_news' --epochs 50 --num_classes 10
    ```
 
 3. **Training vision classifier**:
-
-   To train the SleepNet model using default parameters:
-   ```bash
-   python train_vision.py
-   ```
-
-   For customized training settings:
+   For training settings:
    ```bash
    python train_vision.py --dataset 'cifar100' --epochs 50 --num_classes 10
    ```
