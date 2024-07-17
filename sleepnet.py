@@ -1,14 +1,15 @@
 import torch.nn as nn
-from transformers import ViTModel
+from transformers import ViTMAEForPreTraining
 import torch
-mae = ViTModel.from_pretrained("google/vit-base-patch16-224",output_hidden_states=True)
-
+mae =  ViTMAEForPreTraining.from_pretrained("facebook/vit-mae-base")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+mae.to(device)
 # Freezing the parameters
-for param in mae.parameters():
-    param.requires_grad = False
+# for param in mae.parameters():
+#     param.requires_grad = False
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1, MAE=mae):
+    def __init__(self, in_channels, out_channels, stride=1):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
@@ -21,7 +22,7 @@ class BasicBlock(nn.Module):
                 nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(out_channels)
             )
-        self.mae = MAE
+        # self.mae = MAE
         self.linear = nn.Linear(768, 64*56*56)
         self.pool= nn.AdaptiveAvgPool2d((1,1))
         self.upsample = nn.Upsample((224, 224), mode='bilinear', align_corners=True)
@@ -31,26 +32,38 @@ class BasicBlock(nn.Module):
 
     def forward(self, x):
         identity = x
+        # print('the x size:',x.shape)
         x_reshaped = self.upsample(x)
+        # print('the x reshaped size:',x_reshaped.shape)
         x_reshaped = self.conv1x1(x_reshaped)
-        hidden = self.mae(x_reshaped).last_hidden_state
+        # print('the x reshaped size:',x_reshaped.shape)
+        hidden = mae(x_reshaped).logits
+        # print('the size ater mae:',hidden.shape)
+        reconstruction=mae.unpatchify(hidden)
         hidden = hidden.mean(dim=1)
+        # print('the size after mae:',hidden.shape)
         # print('the size after mean:',hidden.shape)
         hidden = self.linear(hidden)
+        # print('the size after mae:',hidden.shape)
         hidden = hidden.view(x.size(0), 64,56,56)
+        # print('the size after mae:',hidden.shape)
         out = self.relu(self.bn1(self.conv1(x)))
+        # print('out size:',out.shape)
         out = self.bn2(self.conv2(out))
+        # print('out size:',out.shape)
         out += self.downsample(identity)
         # print('out size:',out.shape)
         # hidden_reshaped = hidden.view(out.size())
+        # print('hidden size:',hidden.shape)
+
         out = out+hidden
         out = self.relu(out)
-        return out
+        return out, reconstruction
 
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=1000, MAE=mae):
+    def __init__(self, block, num_blocks, num_classes=1000):
         super(ResNet, self).__init__()
         # self.upsample = nn.Upsample((224, 224), mode='bilinear', align_corners=True)
         # self.conv1x1 = nn.Conv2d(64, 3, kernel_size=1, stride=1, padding=0)
@@ -60,13 +73,19 @@ class ResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.maxpool2 = nn.MaxPool1d(kernel_size=75)
-        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 64, num_blocks[1], stride=1)
-        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=1)
-        self.layer4 = self._make_layer(block, 64, num_blocks[3], stride=1)
+        # self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
+        # self.layer2 = self._make_layer(block, 64, num_blocks[1], stride=1)
+        # self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=1)
+
+        self.layer1 = block(64, 64, stride=1)
+        self.layer2 = block(64, 64, stride=1)
+        self.layer3 = block(64, 64, stride=1)
+        # self.layer4 = block(64, 64, stride=1)
+
+        # self.layer4 = self._make_layer(block, 64, num_blocks[3], stride=1)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(64 , num_classes)
-        self.mae = MAE
+        # self.mae = MAE
 
 
     def _make_layer(self, block, out_channels, num_blocks, stride):
@@ -86,10 +105,23 @@ class ResNet(nn.Module):
         # hidden = self.maxpool2(hidden)
         out = self.relu(self.bn1(self.conv1(x)))
         out = self.maxpool(out)
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        # out = self.layer4(out)
+        # print('the size after maxpool:',out.shape)
+        out, d1 = self.layer1(out)
+        # print('the size after layer1:',out.shape)
+        out, d2 = self.layer2(out)
+        out, d3 = self.layer3(out)
+        # out, d4 = self.layer4(out)
+
+
+        new_out = x+d1+d2+d3
+        out = self.relu(self.bn1(self.conv1(new_out)))
+        out = self.maxpool(out)
+        out, d1 = self.layer1(out)
+        out, d2 = self.layer2(out)
+        out, d3 = self.layer3(out)
+        # out, d4 = self.layer4(out)
+
+
         out = self.avgpool(out)
         out = out.view(out.size(0), -1)
         out = self.fc(out)
@@ -99,52 +131,4 @@ class ResNet(nn.Module):
 def ResNet18(num_classes):
     return ResNet(BasicBlock, [2, 2, 2, 2], num_classes)
 
-
-def get_dataset(name, train=True, transform=None):
-    if name == 'cifar10':
-        return torchvision.datasets.CIFAR10(root='./data', train=train, download=True, transform=transform)
-    elif name == 'cifar100':
-        return torchvision.datasets.CIFAR100(root='./data', train=train, download=True, transform=transform)
-    elif name == 'imagenet':
-        return torchvision.datasets.ImageNet(root='./data', split='train' if train else 'val', download=True, transform=transform)
-    else:
-        raise ValueError(f'Invalid dataset name: {name}')
-
-
-
-##text
-import torch.nn as nn
-from transformers import BertModel
-
-class TextCNN(nn.Module):
-    def __init__(self, num_classes, vocab_size, embed_size, num_filters, filter_sizes, dropout=0.5, pretrain_model='bert-base-uncased'):
-        super(TextCNN, self).__init__()
-        
-        # Load BERT model for token embedding
-        self.bert = BertModel.from_pretrained(pretrain_model)
-        for param in self.bert.parameters():
-            param.requires_grad = False
-        
-        self.convs = nn.ModuleList([
-            nn.Conv2d(1, num_filters, (fs, embed_size))
-            for fs in filter_sizes
-        ])
-        
-        self.dropout = nn.Dropout(dropout)
-        self.fc = nn.Linear(num_filters * len(filter_sizes), num_classes)
-        self.fc2 = nn.Linear(512*768, 96)
-        
-    def forward(self, input_ids):
-        sleeps = self.bert(input_ids=input_ids).last_hidden_state
-        x = sleeps.unsqueeze(1)  # Add channel dimension
-        x = [torch.relu(conv(x)).squeeze(3) for conv in self.convs]
-        x = [torch.max_pool1d(i, i.size(2)).squeeze(2) for i in x]
-        x = torch.cat(x, 1)
-        print('x size:',x.shape)
-        print('sleeps size:',sleeps.shape)
-        hidden=sleeps.view(sleeps.size(0),-1)
-        hides=self.fc2(hidden)
-        x=x+hides
-        x = self.dropout(x)
-        logits = self.fc(x)
-        return logits
+# 420505168
