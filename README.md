@@ -1,5 +1,5 @@
 
-# SleepNet Research
+# DreamNet Research
 
 Research and implementation of the novel SleepNet method for both text and image classification tasks.
 
