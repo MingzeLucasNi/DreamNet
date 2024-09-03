@@ -1,7 +1,6 @@
-
 # DreamNet Research
 
-The Research and implementation of the novel SleepNet method for both text and image classification tasks.
+A comprehensive research and implementation of the novel SleepNet method, designed for both text and image classification tasks.
 
 ## Table of Contents
 
@@ -11,45 +10,44 @@ The Research and implementation of the novel SleepNet method for both text and i
 
 ## Features
 
-- **Vision Transformer (ViT) Integration**: Uses the ViT model to enhance feature extraction capabilities.
-- **ResNet18 Architecture**: Leverages the power of ResNet18 for accurate image classification.
-- **Data Processing**: Incorporates data augmentation and normalization techniques for better generalization across datasets.
-- **GPU Memory Optimization**: Periodically clears GPU memory, ensuring efficient resource utilization during long training sessions.
-- **Adaptive Learning**: Implements a learning rate scheduler for improved model convergence.
+- **Vision Transformer (ViT) Integration**: Enhances feature extraction capabilities by leveraging the Vision Transformer (ViT) model, providing state-of-the-art performance in image classification.
+- **ResNet18 Architecture**: Utilizes the proven ResNet18 architecture to achieve high accuracy in image classification tasks.
+- **Advanced Data Processing**: Employs data augmentation and normalization techniques to improve generalization and robustness across diverse datasets.
+- **Efficient GPU Memory Management**: Periodically clears GPU memory to optimize resource utilization, especially during extended training sessions.
+- **Adaptive Learning Rate Scheduling**: Includes a dynamic learning rate scheduler to facilitate smoother and more effective model convergence.
 
 ## Requirements
 
-- Python 3.8
+- Python 3.8 or later
 - PyTorch
 - torchvision
-- transformers library (from HuggingFace)
-- CUDA-compatible GPU (optional but recommended for faster training)
+- Hugging Face's `transformers` library
+- CUDA-compatible GPU (recommended for faster training)
 
 ## Usage
 
 1. **Setup & Installation**:
 
-   Install the necessary packages:
-   ```
+   Install all necessary dependencies with:
+   ```bash
    pip install -r requirements.txt
    ```
 
-2. **Training text classifier**:
+2. **Training the Text Classifier**:
 
-   To train the SleepNet model using default parameters:
+   To train the SleepNet model with default parameters:
    ```bash
    python trainer.py
    ```
 
-   For customized training settings:
+   For customized training settings, use:
    ```bash
    python trainer.py --dataset 'ag_news' --epochs 50 --num_classes 10
    ```
 
-3. **Training vision classifier**:
-   For training settings:
+3. **Training the Vision Classifier**:
+
+   To train the SleepNet model for image classification:
    ```bash
    python train_vision.py --dataset 'cifar100' --epochs 50 --num_classes 10
    ```
-
----
